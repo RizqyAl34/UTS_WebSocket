@@ -138,7 +138,7 @@ Tab Browser A                    Server Node.js               Tab Browser B
 | **Mata Kuliah** | Pemrograman Web |
 | **Tugas** | UTS — Menulis Artikel untuk Publikasi Online |
 | **Topik** | WebSocket |
-| **Publikasi** | [Baca artikel di Medium](#) |
+| **Publikasi** | [Baca artikel di Medium](https://medium.com/@rizkial347/websocket-teknologi-di-balik-aplikasi-web-real-time-e560f727d28f) |
 
 ---
 
