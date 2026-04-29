@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Real-Time — WebSocket</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            width: 420px;
+            overflow: hidden;
+        }
+
+        .header {
+            background: #1F5C99;
+            color: white;
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h2 { font-size: 18px; }
+
+        .status {
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.2);
+        }
+
+        .status.connected { background: #27ae60; }
+        .status.disconnected { background: #e74c3c; }
+
+        #messages {
+            height: 360px;
+            overflow-y: auto;
+            padding: 16px;
+            background: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .message.server {
+            align-self: center;
+            background: #e8e8e8;
+            color: #555;
+            font-size: 12px;
+            font-style: italic;
+            border-radius: 20px;
+            text-align: center;
+        }
+
+        .message.self {
+            align-self: flex-end;
+            background: #1F5C99;
+            color: white;
+        }
+
+        .message.other {
+            align-self: flex-start;
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            color: #333;
+        }
+
+        .message .meta {
+            font-size: 11px;
+            margin-bottom: 4px;
+            opacity: 0.75;
+            font-weight: bold;
+        }
+
+        .input-area {
+            display: flex;
+            padding: 14px;
+            gap: 10px;
+            border-top: 1px solid #eee;
+            align-items: center;
+        }
+
+        #usernameInput {
+            width: 100px;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #333;
+        }
+
+        #messageInput {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+        }
+
+        #messageInput:focus { border-color: #1F5C99; }
+
+        button {
+            padding: 10px 18px;
+            background: #1F5C99;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover { background: #174d82; }
+        button:disabled { background: #aaa; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h2>💬 Chat Real-Time</h2>
+        <span class="status disconnected" id="statusBadge">Menghubungkan...</span>
+    </div>
+    <div id="messages"></div>
+    <div class="input-area">
+        <input id="usernameInput" type="text" placeholder="Nama" value="User" />
+        <input id="messageInput" type="text" placeholder="Ketik pesan..." disabled />
+        <button id="sendBtn" onclick="sendMessage()" disabled>Kirim</button>
+    </div>
+</div>
+
+<script>
+    const ws = new WebSocket('ws://localhost:8080');
+    const messagesDiv = document.getElementById('messages');
+    const messageInput = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const statusBadge = document.getElementById('statusBadge');
+
+    // Koneksi berhasil dibuka
+    ws.onopen = () => {
+        statusBadge.textContent = 'Terhubung';
+        statusBadge.className = 'status connected';
+        messageInput.disabled = false;
+        sendBtn.disabled = false;
+        console.log('WebSocket terhubung!');
+    };
+
+    // Menerima pesan dari server
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        const username = document.getElementById('usernameInput').value || 'User';
+
+        const div = document.createElement('div');
+
+        if (data.user === 'Server') {
+            div.className = 'message server';
+            div.textContent = data.text;
+        } else if (data.user === username) {
+            div.className = 'message self';
+            div.innerHTML = `<div class="meta">You — ${data.time}</div>${data.text}`;
+        } else {
+            div.className = 'message other';
+            div.innerHTML = `<div class="meta">${data.user} — ${data.time}</div>${data.text}`;
+        }
+
+        messagesDiv.appendChild(div);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    };
+
+    // Koneksi terputus
+    ws.onclose = () => {
+        statusBadge.textContent = 'Terputus';
+        statusBadge.className = 'status disconnected';
+        messageInput.disabled = true;
+        sendBtn.disabled = true;
+    };
+
+    // Error koneksi
+    ws.onerror = (err) => {
+        console.error('WebSocket error:', err);
+    };
+
+    // Kirim pesan
+    function sendMessage() {
+        const text = messageInput.value.trim();
+        const user = document.getElementById('usernameInput').value.trim() || 'User';
+
+        if (text && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ user, text }));
+            messageInput.value = '';
+            messageInput.focus();
+        }
+    }
+
+    // Kirim dengan Enter
+    messageInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') sendMessage();
+    });
+</script>
+</body>
+</html>
